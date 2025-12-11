@@ -1,3 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
 .venv/
-.git-practice/
-.backend.zip
+
+# VS Code
+.vscode/
+
+# OS Files
+.DS_Store
+
+# 기타
+*.log
