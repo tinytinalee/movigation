@@ -32,15 +32,7 @@ router = APIRouter(tags=["registration"])
 def request_signup(
     payload: SignupRequest,
     db: Session = Depends(get_db),
-) -> SignupRequestResponse:
-    """
-    회원가입 이메일 + 비밀번호 + 닉네임을 받고,
-    - 이미 가입된 이메일인지 검사
-    - Redis에 인증정보 + 코드 저장
-    - 인증코드 메일 발송
-
-    성공 시, 인증 만료 시간(expires_in)을 함께 반환한다.
-    """
+) -> SignupRequestResponse:  # 성공 시, 인증 만료 시간(expires_in)을 함께 반환한다.
     return service.request_signup(db, payload)
 
 
@@ -56,11 +48,6 @@ def confirm_signup(
     payload: SignupConfirm,
     db: Session = Depends(get_db),
 ) -> SignupConfirmResponse:
-    """
-    이메일과 인증 코드를 받아 Redis에 저장된 값과 비교하고,
-    - 코드가 유효하면 실제 User를 생성
-    - JWT 액세스 토큰을 발급하여 반환한다.
-    """
     return service.confirm_signup(db, payload)
 
 
@@ -76,10 +63,6 @@ def select_ott(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """
-    유저가 구독 중인 OTT(provider_id 리스트)를 저장한다.
-    기존 값은 모두 삭제 후 새로 저장하는 idempotent 동작이다.
-    """
     service.save_user_ott(db, current_user, payload)
     return {"status": "ok"}
 
@@ -96,10 +79,6 @@ def survey(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """
-    온보딩 영화 설문에서 유저가 선택한 movie_id 리스트를 저장한다.
-    기존 응답은 삭제 후 새로 저장한다.
-    """
     service.save_onboarding_answers(db, current_user, payload)
     return {"status": "ok"}
 
@@ -116,10 +95,6 @@ def complete(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> OnboardingCompleteResponse:
-    """
-    온보딩을 완료 상태로 변경한다.
-    추후 벡터 생성 등 후처리 작업은 이 시점에 트리거할 수 있다.
-    """
     return service.complete_onboarding(db, current_user)
 
 
@@ -135,9 +110,4 @@ def skip(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> OnboardingCompleteResponse:
-    """
-    온보딩을 스킵한다.
-    스펙 상 onboarding_completed 플래그는 변경하지 않고,
-    현재 상태를 그대로 응답으로 반환한다.
-    """
     return service.skip_onboarding(db, current_user)

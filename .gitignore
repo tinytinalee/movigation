@@ -11,5 +11,8 @@ __pycache__/
 # OS Files
 .DS_Store
 
+# .env Files
+.env
+
 # 기타
 *.log

@@ -10,10 +10,6 @@ from backend.models import Base
 
 
 class User(Base):
-    """
-    users 테이블
-    - 회원 기본 정보 + 온보딩 완료 여부
-    """
 
     __tablename__ = "users"
 
@@ -57,10 +53,6 @@ class User(Base):
 
 
 class UserOttMap(Base):
-    """
-    user_ott_map 테이블
-    - 유저가 구독 중인 OTT 목록 (N:N 매핑)
-    """
 
     __tablename__ = "user_ott_map"
 
@@ -79,11 +71,6 @@ class UserOttMap(Base):
 
 
 class UserOnboardingAnswer(Base):
-    """
-    user_onboarding_answers 테이블
-    - 온보딩 취향 설문에서 유저가 선택한 영화들
-      (user_id + movie_id 복합 PK)
-    """
 
     __tablename__ = "user_onboarding_answers"
 

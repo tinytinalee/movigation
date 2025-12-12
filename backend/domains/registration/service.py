@@ -42,14 +42,10 @@ def _redis_key(email: str) -> str:
 # ========================================
 # REG-01-01 회원가입 요청
 # ========================================
-def request_signup(db: Session, payload: SignupRequest) -> SignupRequestResponse:
-    """
-    회원가입 요청 처리:
-    - 이미 가입된 이메일인지 체크
-    - 임시 인증 코드 생성
-    - Redis에 이메일/비밀번호/닉네임/코드 저장
-    - 인증 코드 메일 발송
-    """
+def request_signup(
+    db: Session, payload: SignupRequest
+) -> SignupRequestResponse:  # 이메일 중복 체크, 인증코드 생성 후 발송까지
+
     # 이미 가입된 이메일인지 체크
     exists = db.query(User).filter(User.email == payload.email).first()
     if exists:
@@ -85,15 +81,10 @@ def request_signup(db: Session, payload: SignupRequest) -> SignupRequestResponse
 # ========================================
 # REG-01-02 이메일 인증 후 실제 유저 생성
 # ========================================
-def confirm_signup(db: Session, payload: SignupConfirm) -> SignupConfirmResponse:
-    """
-    이메일 + 인증 코드 확인:
-    - Redis에서 임시 데이터 조회
-    - 코드 검증
-    - 실제 User 생성
-    - Redis 데이터 삭제
-    - JWT 액세스 토큰 발급
-    """
+def confirm_signup(
+    db: Session, payload: SignupConfirm
+) -> SignupConfirmResponse:  # 인증코드 확인하고 가입 승인, 토큰 발급
+
     redis = get_redis_client()
     key = _redis_key(payload.email)
 
@@ -149,11 +140,10 @@ def confirm_signup(db: Session, payload: SignupConfirm) -> SignupConfirmResponse
 # ========================================
 # REG-03-01 온보딩 – OTT 선택
 # ========================================
-def save_user_ott(db: Session, user: User, payload: OnboardingOTTRequest) -> None:
-    """
-    유저가 구독 중인 OTT(provider_id 리스트)를 저장.
-    기존 기록은 모두 삭제 후 다시 저장한다 (idempotent).
-    """
+def save_user_ott(
+    db: Session, user: User, payload: OnboardingOTTRequest
+) -> None:  # 선택한 ott 저장
+
     # 기존 데이터 삭제 후 다시 저장 (idempotent)
     db.execute(delete(UserOttMap).where(UserOttMap.user_id == user.user_id))
 
@@ -170,11 +160,7 @@ def save_onboarding_answers(
     db: Session,
     user: User,
     payload: OnboardingSurveyRequest,
-) -> None:
-    """
-    온보딩 영화 설문에서 유저가 선택한 movie_id 목록을 저장.
-    기존 응답은 삭제 후 새로 저장한다.
-    """
+) -> None:  # 선택한 영화 저장
     now = datetime.utcnow()
 
     # 기존 기록 삭제 후 새로 저장
@@ -197,19 +183,13 @@ def save_onboarding_answers(
 # ========================================
 # REG-05-01 온보딩 완료
 # ========================================
-def complete_onboarding(db: Session, user: User) -> OnboardingCompleteResponse:
-    """
-    온보딩 완료 처리.
-    플래그를 True로 바꾸고, 후처리(벡터 생성 등)는 추후 추가 가능.
-    """
+def complete_onboarding(
+    db: Session, user: User
+) -> OnboardingCompleteResponse:  # 온보딩 완료
     user.onboarding_completed = True
     db.add(user)
     db.commit()
     db.refresh(user)
-
-    # ⚠️ TODO: Celery로 "유저 벡터 생성" 트리거하기
-    # from backend.services.ai_gateway import trigger_vector_update
-    # trigger_vector_update.delay(str(user.user_id))
 
     return OnboardingCompleteResponse(
         user_id=str(user.user_id),
@@ -220,11 +200,9 @@ def complete_onboarding(db: Session, user: User) -> OnboardingCompleteResponse:
 # ========================================
 # REG-05-02 온보딩 스킵
 # ========================================
-def skip_onboarding(db: Session, user: User) -> OnboardingCompleteResponse:
-    """
-    온보딩 스킵 처리.
-    onboarding_completed 값은 변경하지 않고 현재 상태를 그대로 반환한다.
-    """
+def skip_onboarding(
+    db: Session, user: User
+) -> OnboardingCompleteResponse:  # 온보딩 스킵으로 완료
     # 스펙 상 onboarding_completed=False 유지
     return OnboardingCompleteResponse(
         user_id=str(user.user_id),
