@@ -5,7 +5,13 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.models import Base
+from sqlalchemy.orm import DeclarativeBase
+
+
+class Base(DeclarativeBase):
+    """모든 ORM 모델이 상속할 공통 Base 클래스"""
+
+    pass
 
 # ======================================================
 # DATABASE_URL

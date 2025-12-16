@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from backend.models import Base
+from backend.core.db import Base
 
 
 class Movie(Base):

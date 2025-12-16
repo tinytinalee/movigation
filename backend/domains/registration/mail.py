@@ -1,4 +1,4 @@
-# backend/services/mail_service.py
+# backend/domains/registration/mail.py
 
 import os
 import secrets

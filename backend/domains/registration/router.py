@@ -3,9 +3,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from backend.core.auth import get_current_user
+from backend.domains.auth.utils import get_current_user
 from backend.core.db import get_db
-from backend.models.user import User
+from backend.domains.user.models import User
 
 from . import service
 from .schema import (
@@ -37,7 +37,21 @@ def request_signup(
 
 
 # =========================
-# REG-01-02 이메일 인증 확인
+# REG-01-01-1 이메일 인증 코드 검증
+# =========================
+@router.post(
+    "/auth/signup/verify",
+    summary="이메일 인증 코드 검증 (회원가입 전)",
+)
+def verify_signup_code(
+    payload: SignupConfirm,
+) -> dict:
+    """인증 코드만 검증 (회원가입은 하지 않음)"""
+    return service.verify_code(payload)
+
+
+# =========================
+# REG-01-02 이메일 인증 확인 및 회원가입 확정
 # =========================
 @router.post(
     "/auth/signup/confirm",

@@ -1,4 +1,4 @@
-# backend/core/auth.py
+# backend/domains/auth/utils.py
 
 import os
 from datetime import datetime, timedelta
@@ -10,7 +10,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from backend.core.db import get_db
-from backend.models.user import User
+from backend.domains.user.models import User
 
 # ======================================================
 # JWT 설정

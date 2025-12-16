@@ -8,9 +8,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from backend.core.auth import create_access_token  # JWT 발급 함수
-from backend.models.user import User, UserOnboardingAnswer, UserOttMap
-from backend.services.mail_service import (
+from backend.domains.auth.utils import create_access_token  # JWT 발급 함수
+from backend.domains.user.models import User, UserOnboardingAnswer, UserOttMap
+from .mail import (
     generate_signup_code,
     send_signup_code_email,
 )
@@ -47,11 +47,19 @@ def request_signup(
 ) -> SignupRequestResponse:  # 이메일 중복 체크, 인증코드 생성 후 발송까지
 
     # 이미 가입된 이메일인지 체크
-    exists = db.query(User).filter(User.email == payload.email).first()
-    if exists:
+    email_exists = db.query(User).filter(User.email == payload.email).first()
+    if email_exists:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="이미 가입된 이메일입니다.",
+        )
+
+    # 닉네임 중복 체크 추가
+    nickname_exists = db.query(User).filter(User.nickname == payload.nickname).first()
+    if nickname_exists:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 사용 중인 닉네임입니다.",
         )
 
     # 인증 코드 생성 (6자리 숫자)
@@ -60,6 +68,9 @@ def request_signup(
     # Redis 저장
     redis = get_redis_client()
     key = _redis_key(payload.email)
+
+    print(f"[DEBUG] Saving to Redis key: '{key}'")
+    print(f"[DEBUG] Code to save: '{code}'")
 
     redis.hset(
         key,
@@ -72,10 +83,49 @@ def request_signup(
     )
     redis.expire(key, SIGNUP_CODE_TTL)
 
+    # 확인
+    saved_data = redis.hgetall(key)
+    print(f"[DEBUG] Saved data in Redis: {saved_data}")
+
     # 메일 발송 (SMTP 환경변수 없으면 콘솔에만 출력)
     send_signup_code_email(payload.email, code)
 
     return SignupRequestResponse(email=payload.email, expires_in=SIGNUP_CODE_TTL)
+
+
+# ========================================
+# REG-01-01-1 이메일 인증 코드 검증 (회원가입 전)
+# ========================================
+def verify_code(payload: SignupConfirm) -> dict:
+    """
+    인증 코드만 검증 (회원가입은 하지 않음)
+    프론트엔드에서 "인증 확인" 버튼 클릭 시 호출
+    """
+    redis = get_redis_client()
+    key = _redis_key(payload.email)
+
+    data = redis.hgetall(key)
+    if not data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="인증 정보가 만료되었거나 존재하지 않습니다.",
+        )
+
+    stored_code = data.get("code", "")
+
+    # 디버깅 로그
+    print(f"[DEBUG] Redis stored code: '{stored_code}'")
+    print(f"[DEBUG] User input code: '{payload.code}'")
+    print(f"[DEBUG] Codes match: {stored_code == payload.code}")
+
+    if stored_code != payload.code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="인증 코드가 올바르지 않습니다.",
+        )
+
+    # 인증 성공
+    return {"valid": True, "message": "인증되었습니다"}
 
 
 # ========================================
@@ -95,7 +145,13 @@ def confirm_signup(
             detail="인증 정보가 만료되었거나 존재하지 않습니다.",
         )
 
-    stored_code = data.get(b"code", b"").decode()
+    stored_code = data.get("code", "")
+
+    # 디버깅 로그
+    print(f"[DEBUG] Redis stored code: '{stored_code}'")
+    print(f"[DEBUG] User input code: '{payload.code}'")
+    print(f"[DEBUG] Codes match: {stored_code == payload.code}")
+
     if stored_code != payload.code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -112,9 +168,10 @@ def confirm_signup(
 
     # 실제 유저 생성
     user = User(
-        email=data[b"email"].decode(),
-        password=data[b"password"].decode(),
-        onboarding_completed=False,
+        email=data["email"],
+        password_hash=data["password"],  # password_hash로 저장
+        nickname=data["nickname"],  # nickname 추가
+        onboarding_completed_at=None,  # 온보딩 미완료 (NULL)
     )
     db.add(user)
     db.commit()
@@ -129,7 +186,8 @@ def confirm_signup(
     return SignupConfirmResponse(
         user_id=str(user.user_id),
         email=user.email,
-        onboarding_completed=user.onboarding_completed,
+        onboarding_completed=user.onboarding_completed_at
+        is not None,  # NULL이 아니면 완료
         token={
             "access_token": token,
             "token_type": "bearer",
@@ -161,7 +219,6 @@ def save_onboarding_answers(
     user: User,
     payload: OnboardingSurveyRequest,
 ) -> None:  # 선택한 영화 저장
-    now = datetime.utcnow()
 
     # 기존 기록 삭제 후 새로 저장
     db.execute(
@@ -173,7 +230,7 @@ def save_onboarding_answers(
             UserOnboardingAnswer(
                 user_id=user.user_id,
                 movie_id=movie_id,
-                selected_at=now,
+                # created_at은 DB에서 자동 생성
             )
         )
 
@@ -186,7 +243,7 @@ def save_onboarding_answers(
 def complete_onboarding(
     db: Session, user: User
 ) -> OnboardingCompleteResponse:  # 온보딩 완료
-    user.onboarding_completed = True
+    user.onboarding_completed_at = datetime.utcnow()
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -206,5 +263,5 @@ def skip_onboarding(
     # 스펙 상 onboarding_completed=False 유지
     return OnboardingCompleteResponse(
         user_id=str(user.user_id),
-        onboarding_completed=user.onboarding_completed,
+        onboarding_completed=user.onboarding_completed_at is not None,
     )
