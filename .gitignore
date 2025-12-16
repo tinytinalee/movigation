@@ -6,13 +6,16 @@ __pycache__/
 .venv/
 
 # VS Code
-#.vscode/
+.vscode/
 
 # OS Files
 .DS_Store
 
 # .env Files
 .env
+
+# MovieSir folder
+MovieSir/
 
 # 기타
 *.log
