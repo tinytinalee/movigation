@@ -234,6 +234,9 @@ def save_onboarding_answers(
             )
         )
 
+    # 설문 완료 시 온보딩 완료 처리
+    user.onboarding_completed = True
+    db.add(user)
     db.commit()
 
 
@@ -243,7 +246,7 @@ def save_onboarding_answers(
 def complete_onboarding(
     db: Session, user: User
 ) -> OnboardingCompleteResponse:  # 온보딩 완료
-    user.onboarding_completed_at = datetime.utcnow()
+    user.onboarding_completed = True
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -260,8 +263,13 @@ def complete_onboarding(
 def skip_onboarding(
     db: Session, user: User
 ) -> OnboardingCompleteResponse:  # 온보딩 스킵으로 완료
-    # 스펙 상 onboarding_completed=False 유지
+    # 스킵 시에도 온보딩 완료 처리 (메인 진입 허용)
+    user.onboarding_completed = True
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
     return OnboardingCompleteResponse(
         user_id=str(user.user_id),
-        onboarding_completed=user.onboarding_completed_at is not None,
+        onboarding_completed=True,
     )

@@ -59,7 +59,7 @@ class OnboardingOTTRequest(BaseModel):  # OTT 선택하기
 # =========================
 class OnboardingSurveyRequest(BaseModel):  # 취향 선택하기
 
-    movie_ids: List[int]
+    movie_ids: List[int] = Field(min_length=1)
 
 
 # =========================
