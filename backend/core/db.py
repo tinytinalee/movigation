@@ -2,10 +2,14 @@
 
 import os
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from sqlalchemy.orm import DeclarativeBase
+
+# .env 파일 로드
+load_dotenv()
 
 
 class Base(DeclarativeBase):

@@ -6,7 +6,7 @@ __pycache__/
 .venv/
 
 # VS Code
-.vscode/
+#.vscode/
 
 # OS Files
 .DS_Store

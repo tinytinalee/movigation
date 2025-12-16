@@ -16,6 +16,7 @@ from .schema import (
     SignupConfirmResponse,
     SignupRequest,
     SignupRequestResponse,
+    SurveyMoviesResponse,
 )
 
 router = APIRouter(tags=["registration"])
@@ -110,6 +111,21 @@ def complete(
     current_user: User = Depends(get_current_user),
 ) -> OnboardingCompleteResponse:
     return service.complete_onboarding(db, current_user)
+
+
+# =========================
+# REG-04-02 온보딩 설문용 영화 조회
+# =========================
+@router.get(
+    "/onboarding/survey/movies",
+    response_model=SurveyMoviesResponse,
+    summary="온보딩 설문용 랜덤 영화 10개 조회",
+)
+def get_survey_movies(
+    db: Session = Depends(get_db),
+) -> SurveyMoviesResponse:
+    """키워드별로 랜덤 영화 1개씩, 총 10개 반환"""
+    return service.get_onboarding_survey_movies(db)
 
 
 # =========================

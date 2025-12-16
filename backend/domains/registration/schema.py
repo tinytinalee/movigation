@@ -63,6 +63,19 @@ class OnboardingSurveyRequest(BaseModel):  # 취향 선택하기
 
 
 # =========================
+# REG-04-02 설문용 영화 목록 조회
+# =========================
+class SurveyMovieItem(BaseModel):  # 설문용 영화 한 개
+    movie_id: int
+    mood_tag: str
+    title: str
+
+
+class SurveyMoviesResponse(BaseModel):  # 설문용 영화 목록
+    movies: List[SurveyMovieItem]
+
+
+# =========================
 # REG-05-01 / 05-02 온보딩 완료 / 스킵
 # =========================
 class OnboardingCompleteResponse(BaseModel):  # 선택완료 or 스킵

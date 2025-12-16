@@ -82,3 +82,23 @@ class MovieOttMap(Base):
 
     movie = relationship("Movie", back_populates="ott_mappings")
     provider = relationship("OttProvider", back_populates="movie_mappings")
+
+
+class OnboardingCandidate(Base):
+    """
+    onboarding_candidates 테이블
+    - 온보딩 설문용 영화 후보 (키워드별)
+    """
+
+    __tablename__ = "onboarding_candidates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    movie_id = Column(
+        Integer,
+        ForeignKey("movies.movie_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    mood_tag = Column(String(50), nullable=False)
+    display_order = Column(Integer, nullable=False)
+
+    movie = relationship("Movie")

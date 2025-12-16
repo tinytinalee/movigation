@@ -5,10 +5,11 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.orm import Session
 
 from backend.domains.auth.utils import create_access_token  # JWT 발급 함수
+from backend.domains.movie.models import Movie, OnboardingCandidate
 from backend.domains.user.models import User, UserOnboardingAnswer, UserOttMap
 from .mail import (
     generate_signup_code,
@@ -25,6 +26,8 @@ from .schema import (
     SignupConfirmResponse,
     SignupRequest,
     SignupRequestResponse,
+    SurveyMovieItem,
+    SurveyMoviesResponse,
 )
 
 # ========================================
@@ -273,3 +276,68 @@ def skip_onboarding(
         user_id=str(user.user_id),
         onboarding_completed=True,
     )
+
+
+# ========================================
+# REG-04-02 온보딩 설문용 영화 랜덤 조회
+# ========================================
+def get_onboarding_survey_movies(db: Session) -> SurveyMoviesResponse:
+    """
+    키워드별로 랜덤 영화 1개씩 선택 (총 10개)
+    "불멸의 명작" + "평론가 추천 / 예술" 통합
+    """
+    # 10개 키워드 정의 (통합된 키워드 포함)
+    keywords = [
+        "가벼운 재미 / 코미디",
+        "설레는 로맨스",
+        "환상적인 모험",
+        "동심의 세계 / 애니메이션",
+        ["불멸의 명작", "평론가 추천 / 예술"],  # 통합 키워드
+        "감성 인디 / 인간관계",
+        "압도적 스케일 / 히어로",
+        "SF / 우주 / 미래",
+        "등골이 오싹한 / 공포",
+        "짜릿한 액션 / 범죄",
+    ]
+
+    result_movies = []
+
+    for keyword in keywords:
+        # 통합 키워드 처리
+        if isinstance(keyword, list):
+            # 두 키워드 모두에서 후보 가져오기
+            candidates = (
+                db.query(OnboardingCandidate, Movie)
+                .join(Movie, OnboardingCandidate.movie_id == Movie.movie_id)
+                .filter(OnboardingCandidate.mood_tag.in_(keyword))
+                .all()
+            )
+            mood_tag = " / ".join(keyword)  # 표시용 통합 태그
+        else:
+            # 단일 키워드
+            candidates = (
+                db.query(OnboardingCandidate, Movie)
+                .join(Movie, OnboardingCandidate.movie_id == Movie.movie_id)
+                .filter(OnboardingCandidate.mood_tag == keyword)
+                .all()
+            )
+            mood_tag = keyword
+
+        if not candidates:
+            # 해당 키워드에 후보가 없으면 건너뛰기
+            continue
+
+        # 랜덤으로 1개 선택
+        import random
+
+        selected_candidate, selected_movie = random.choice(candidates)
+
+        result_movies.append(
+            SurveyMovieItem(
+                movie_id=selected_movie.movie_id,
+                mood_tag=mood_tag,
+                title=selected_movie.title,
+            )
+        )
+
+    return SurveyMoviesResponse(movies=result_movies)
